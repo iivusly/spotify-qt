@@ -1,13 +1,13 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.16)
 
-project(spotify-qt LANGUAGES CXX VERSION 3.11)
+project(spotify-qt LANGUAGES CXX VERSION 3.12)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-# C++11
-set(CMAKE_CXX_STANDARD 11)
+# C++17 is required on some platforms by Qt 6
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Optional D-Bus support
@@ -26,7 +26,7 @@ endif ()
 
 # Set target macOS version
 if (APPLE)
-	set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15")
+	set(CMAKE_OSX_DEPLOYMENT_TARGET "12")
 endif ()
 
 # Find Qt
@@ -141,7 +141,7 @@ if (Qt${QT_VERSION_MAJOR}DBus_FOUND)
 endif ()
 
 # KCrash support
-if (KF5Crash_FOUND AND NOT USE_QT6)
+if (KF5Crash_FOUND AND USE_QT5)
 	target_compile_definitions(spotify-qt PRIVATE USE_KCRASH)
 	target_link_libraries(spotify-qt PRIVATE KF5::Crash)
 endif ()

@@ -35,7 +35,6 @@ namespace SettingsPage
 		QGroupBox *sptGroup = nullptr;
 		QLabel *sptVersion = nullptr;
 		QLineEdit *sptPath = nullptr;
-		QLineEdit *sptUsername = nullptr;
 		QCheckBox *sptDiscovery = nullptr;
 		QLineEdit *sptAdditionalArguments = nullptr;
 
@@ -65,9 +64,5 @@ namespace SettingsPage
 		auto config() -> QWidget *;
 
 		void onSpotifyStatusChanged(const QString &status);
-
-#ifdef USE_KEYCHAIN
-		void onClearPassword(bool checked);
-#endif
 	};
 }

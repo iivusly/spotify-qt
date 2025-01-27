@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 3.5)
-project(spotify-qt-lib LANGUAGES CXX VERSION 0.9)
+cmake_minimum_required(VERSION 3.16)
+project(spotify-qt-lib LANGUAGES CXX VERSION 0.10)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Optional Qt implementations
@@ -28,7 +28,6 @@ target_include_directories(spotify-qt-lib PUBLIC
 
 # Third-party libraries
 add_subdirectory(thirdparty)
-target_link_libraries(spotify-qt-lib PUBLIC spotify-qt-lib-third-party)
 
 # Version macros
 target_compile_definitions(spotify-qt-lib PUBLIC LIB_VERSION="v${PROJECT_VERSION}")

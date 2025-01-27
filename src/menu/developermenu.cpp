@@ -5,7 +5,6 @@
 #include "dialog/createplaylist.hpp"
 #include "dialog/addtoplaylist.hpp"
 #include "dialog/apirequest.hpp"
-#include "dialog/passwordentry.hpp"
 #include "dialog/memory.hpp"
 #include "dialog/lyricssearch.hpp"
 #include "dialog/disallows.hpp"
@@ -220,6 +219,17 @@ auto DeveloperMenu::statusMenu() -> QMenu *
 		});
 	});
 
+	addMenuItem(menu, QStringLiteral("Information with long message"), []()
+	{
+		const auto text = QStringLiteral(
+			"This is a very long informational message just to make sure that "
+			"messages can be very long without breaking the layout of the "
+			"application or causing other elements to resize"
+		);
+
+		StatusMessage::show(MessageType::Information, text);
+	});
+
 	addMenuItem(menu, "Warning", []()
 	{
 		StatusMessage::show(MessageType::Warning, "Warning");
@@ -285,14 +295,6 @@ void DeveloperMenu::onDialogMenuAboutToShow()
 			QStringLiteral("Add to playlist"), [this, mainWindow]
 			{
 				return new Dialog::AddToPlaylist(spotify, lib::spt::playlist(), {}, {}, mainWindow);
-			}
-		},
-		{
-			QStringLiteral("Password entry"), [this, mainWindow]
-			{
-				auto *paths = new QtPaths(this);
-				auto *runner = new SpotifyClient::Runner(settings, *paths, mainWindow);
-				return new Dialog::PasswordEntry(runner, mainWindow);
 			}
 		},
 		{

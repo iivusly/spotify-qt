@@ -7,7 +7,6 @@
 #include "lib/enum/repeatstate.hpp"
 #include "lib/spotify/album.hpp"
 #include "lib/spotify/artist.hpp"
-#include "lib/spotify/audiofeatures.hpp"
 #include "lib/spotify/callback.hpp"
 #include "lib/spotify/episode.hpp"
 #include "lib/spotify/page.hpp"
@@ -101,6 +100,15 @@ namespace lib
 			//region Library
 
 			void saved_albums(const paged_callback<saved_album> &callback) const;
+
+			void add_saved_albums(const std::vector<std::string> &album_ids,
+				lib::callback<std::string> &callback);
+
+			void remove_saved_albums(const std::vector<std::string> &album_ids,
+				lib::callback<std::string> &callback);
+
+			void is_saved_album(const std::vector<std::string> &album_ids,
+				lib::callback<std::vector<bool>> &callback);
 
 			/**
 			 * @deprecated Use with pagination instead
@@ -258,9 +266,9 @@ namespace lib
 			 * @param callback Created playlist
 			 */
 			void create_playlist(const std::string &name,
-				const lib::optional<std::string> &description,
-				const lib::optional<bool> &is_public,
-				const lib::optional<bool> &is_collaborative,
+				const std::optional<std::string> &description,
+				const std::optional<bool> &is_public,
+				const std::optional<bool> &is_collaborative,
 				lib::callback<lib::spt::playlist> &callback);
 
 			void playlists(const paged_callback<playlist> &callback) const;
@@ -305,12 +313,6 @@ namespace lib
 
 			void track(const std::string &track_id,
 				lib::callback<lib::spt::track> &callback);
-
-			void track_audio_features(const std::string &track_id,
-				lib::callback<lib::spt::audio_features> &callback);
-
-			void track_audio_features(const std::vector<std::string> &track_ids,
-				lib::callback<std::vector<lib::spt::audio_features>> &callback);
 
 			//endregion
 

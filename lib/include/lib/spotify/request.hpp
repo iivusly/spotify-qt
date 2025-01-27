@@ -1,11 +1,13 @@
 #pragma once
 
+#include "lib/fmt.hpp"
 #include "lib/httpclient.hpp"
+#include "lib/log.hpp"
 #include "lib/result.hpp"
-#include "lib/spotify/error.hpp"
-#include "lib/spotify/util.hpp"
 #include "lib/spotify/deviceselect.hpp"
+#include "lib/spotify/error.hpp"
 #include "lib/spotify/page.hpp"
+#include "lib/spotify/util.hpp"
 
 namespace lib
 {
@@ -224,8 +226,9 @@ namespace lib
 				}
 				catch (const nlohmann::json::parse_error &e)
 				{
-					lib::log::debug("JSON: {}", data);
-					return lib::result<void *>::fail(e.what());
+					log::debug("Failed to parse json: {}", e.what());
+					log::debug("JSON: {}", data);
+					return result<void *>::ok(nullptr);
 				}
 				catch (const std::exception &e)
 				{

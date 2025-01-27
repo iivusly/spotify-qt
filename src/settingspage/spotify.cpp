@@ -5,8 +5,8 @@
 
 #include <QStandardPaths>
 
-#ifdef USE_KEYCHAIN
-#include "util/keychain.hpp"
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#include <QtVersionChecks>
 #endif
 
 SettingsPage::Spotify::Spotify(lib::settings &settings, QWidget *parent)
@@ -92,8 +92,15 @@ auto SettingsPage::Spotify::spotify() -> QWidget *
 	sptAppStart->setToolTip("Start, and close, spotify client together with the app "
 							"(only closes when using app config)");
 	sptAppStart->setChecked(settings.spotify.start_client);
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
 	QCheckBox::connect(sptAppStart, &QCheckBox::stateChanged,
 		this, &SettingsPage::Spotify::startClientToggle);
+#else
+	QCheckBox::connect(sptAppStart, &QCheckBox::checkStateChanged,
+		this, &SettingsPage::Spotify::startClientToggle);
+#endif
+
 	content->addWidget(sptAppStart);
 
 	// Always start
@@ -125,6 +132,7 @@ auto SettingsPage::Spotify::spotify() -> QWidget *
 
 	clientStatus = new QLabel(this);
 	clientStatus->setEnabled(false);
+	clientStatus->setWordWrap(true);
 	statusLayout->addWidget(clientStatus, 1);
 	content->addLayout(statusLayout);
 	updateClientStatus();
@@ -184,8 +192,15 @@ auto SettingsPage::Spotify::config() -> QWidget *
 	sptGlobal->setToolTip("Use spotifyd.conf file in ~/.config/spotifyd, /etc or "
 						  "/etc/xdg/spotifyd (spotifyd only)");
 	sptGlobal->setChecked(settings.spotify.global_config);
-	QCheckBox::connect(sptGlobal, &QCheckBox::stateChanged,
-		this, &SettingsPage::Spotify::globalConfigToggle);
+
+#if QT_VERSION < QT_VERSION_CHECK(6, 7, 0)
+	connect(sptGlobal, &QCheckBox::stateChanged,
+		this, &Spotify::globalConfigToggle);
+#else
+	connect(sptGlobal, &QCheckBox::checkStateChanged,
+		this, &Spotify::globalConfigToggle);
+#endif
+
 	content->addWidget(sptGlobal);
 
 	// Box and layout for all app specific settings
@@ -194,11 +209,6 @@ auto SettingsPage::Spotify::config() -> QWidget *
 	auto *sptLayout = new QGridLayout();
 	sptGroup->setLayout(sptLayout);
 	content->addWidget(sptGroup);
-
-	// Username
-	sptLayout->addWidget(new QLabel("Username", sptGroup), 0, 0);
-	sptUsername = new QLineEdit(QString::fromStdString(settings.spotify.username), sptGroup);
-	sptLayout->addWidget(sptUsername, 0, 1);
 
 	// Bitrate
 	sptLayout->addWidget(new QLabel("Quality", sptGroup), 1, 0);
@@ -234,18 +244,6 @@ auto SettingsPage::Spotify::config() -> QWidget *
 
 	sptAdditionalArguments = new QLineEdit(QString::fromStdString(settings.spotify.additional_arguments), sptGroup);
 	sptLayout->addWidget(sptAdditionalArguments, 4, 1);
-
-	// Clear password
-#ifdef USE_KEYCHAIN
-	auto *clearPasswordText = new QLabel(QStringLiteral("Clear saved password"));
-	sptLayout->addWidget(clearPasswordText, 5, 0);
-
-	auto *clearPassword = new QPushButton(QStringLiteral("Clear"), this);
-	sptLayout->addWidget(clearPassword, 5, 1, Qt::AlignTrailing);
-
-	QAbstractButton::connect(clearPassword, &QAbstractButton::clicked,
-		this, &SettingsPage::Spotify::onClearPassword);
-#endif
 
 	// librespot discovery
 	sptDiscovery = new QCheckBox("Enable discovery");
@@ -351,11 +349,6 @@ auto SettingsPage::Spotify::save() -> bool
 	if (sptAppStart != nullptr)
 	{
 		settings.spotify.start_client = sptAppStart->isChecked();
-	}
-
-	if (sptUsername != nullptr)
-	{
-		settings.spotify.username = sptUsername->text().toStdString();
 	}
 
 	if (sptBitrate != nullptr)
@@ -490,34 +483,3 @@ void SettingsPage::Spotify::onSpotifyStatusChanged(const QString &status)
 			? QStringLiteral("Running")
 			: status);
 }
-
-#ifdef USE_KEYCHAIN
-void SettingsPage::Spotify::onClearPassword(bool /*checked*/)
-{
-	const auto username = QString::fromStdString(settings.spotify.username);
-	if (username.isEmpty())
-	{
-		QMessageBox::information(this, QStringLiteral("No username"),
-			QStringLiteral("No username saved to clear password for."));
-		return;
-	}
-
-	const auto password = Keychain::getPassword(username);
-	if (password.isEmpty())
-	{
-		QMessageBox::information(this, QStringLiteral("No password"),
-			QString("No password saved for user \"%1\".").arg(username));
-		return;
-	}
-
-	if (!Keychain::clearPassword(username))
-	{
-		QMessageBox::warning(this, QStringLiteral("Failed"),
-			QStringLiteral("Failed to clear password, check the log for details."));
-		return;
-	}
-
-	QMessageBox::information(this, QStringLiteral("Cleared"),
-		QString("Password cleared for user \"%1\".").arg(username));
-}
-#endif

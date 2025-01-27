@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.10)
 
 project(spotify-qt-lib-test)
 
@@ -12,7 +12,6 @@ add_executable(spotify-qt-lib-test
 	src/imagetests.cpp
 	src/jsontests.cpp
 	src/logtests.cpp
-	src/optionaltests.cpp
 	src/resulttests.cpp
 	src/settingstests.cpp
 	src/spotify/tracktests.cpp

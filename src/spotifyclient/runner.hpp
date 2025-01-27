@@ -28,7 +28,6 @@ namespace SpotifyClient
 		~Runner() override;
 
 		void start();
-		void start(const QString &username, const QString &password);
 
 		static auto getLog() -> const std::vector<lib::log_message> &;
 		auto isRunning() const -> bool;
@@ -41,7 +40,7 @@ namespace SpotifyClient
 		void statusChanged(const QString &status);
 
 	private:
-		QProcess *process = nullptr;
+		QProcess *process;
 		QWidget *parentWidget = nullptr;
 		QString path;
 		static std::vector<lib::log_message> log;
@@ -51,6 +50,10 @@ namespace SpotifyClient
 
 		void logOutput(const QByteArray &output, lib::log_type logType);
 		static auto joinArgs(const QStringList &args) -> QString;
+
+		auto getCachePath() const -> std::filesystem::path;
+		auto isLoggedIn() const -> bool;
+		auto resetCredentials() const -> bool;
 
 		void onReadyReadOutput();
 		void onReadyReadError();

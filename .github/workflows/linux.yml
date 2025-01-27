@@ -4,8 +4,8 @@ on: [ push, pull_request ]
 
 env:
   BUILD_TYPE: Release
-  QT_VERSION: "6.6.3"
-  QT_ARCH: "gcc_64"
+  QT_VERSION: "6.8.0"
+  QT_ARCH: "linux_gcc_64"
 
 jobs:
   build:
@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Qt
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4
         with:
           cache: true
           version: ${{env.QT_VERSION}}

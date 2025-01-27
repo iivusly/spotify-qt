@@ -1,10 +1,8 @@
 #include "spotifyclient/runner.hpp"
-#include "mainwindow.hpp"
-#include "dialog/passwordentry.hpp"
 
-#ifdef USE_KEYCHAIN
-#include "util/keychain.hpp"
-#endif
+#include "lib/log.hpp"
+
+#include "mainwindow.hpp"
 
 std::vector<lib::log_message> SpotifyClient::Runner::log;
 
@@ -18,13 +16,31 @@ SpotifyClient::Runner::Runner(const lib::settings &settings,
 	path = QString::fromStdString(settings.spotify.path);
 	process = new QProcess(parent);
 	clientType = SpotifyClient::Helper::clientType(path);
+
+	connect(process, &QProcess::readyReadStandardOutput,
+		this, &Runner::onReadyReadOutput);
+
+	connect(process, &QProcess::readyReadStandardError,
+		this, &Runner::onReadyReadError);
+
+	connect(process, &QProcess::started,
+		this, &Runner::onStarted);
+
+	connect(process, &QProcess::errorOccurred,
+		this, &Runner::onErrorOccurred);
 }
 
 SpotifyClient::Runner::~Runner()
 {
 	if (process != nullptr)
 	{
-		process->close();
+		if (process->disconnect())
+		{
+			lib::log::debug("Disconnected events from client process");
+		}
+
+		process->terminate();
+		process->waitForFinished();
 	}
 }
 
@@ -60,45 +76,22 @@ void SpotifyClient::Runner::start()
 		return;
 	}
 
-	// Check if username exists
-	const auto username = QString::fromStdString(settings.spotify.username);
-	if (username.isEmpty())
-	{
-		emit statusChanged(QStringLiteral("No username provided"));
-		return;
-	}
-
-	// Try to get password
-	QString password;
-#ifdef USE_KEYCHAIN
-	password = Keychain::getPassword(username);
-#endif
-
-	if (password.isEmpty())
-	{
-		auto *dialog = new Dialog::PasswordEntry(this, parentWidget);
-		dialog->open(username);
-	}
-	else
-	{
-		start(username, password);
-	}
-}
-
-void SpotifyClient::Runner::start(const QString &username, const QString &password)
-{
-	if (password.isEmpty())
-	{
-		emit statusChanged(QStringLiteral("No password provided"));
-		return;
-	}
-
 	// Common arguments
 	QStringList arguments({
 		"--bitrate", QString::number(static_cast<int>(settings.spotify.bitrate)),
-		"--username", username,
-		"--password", password
 	});
+
+	// Check if not logged in
+	if (!isLoggedIn())
+	{
+		if (!Helper::getOAuthSupport(path))
+		{
+			emit statusChanged(QStringLiteral("Client unsupported, please upgrade and try again"));
+			return;
+		}
+
+		arguments.append(QStringLiteral("--enable-oauth"));
+	}
 
 	const auto initialVolume = QString::number(settings.spotify.volume);
 
@@ -108,18 +101,9 @@ void SpotifyClient::Runner::start(const QString &username, const QString &passwo
 		arguments.append({
 			"--name", QString("%1 (librespot)").arg(APP_NAME),
 			"--initial-volume", initialVolume,
-			"--cache", QString::fromStdString((paths.cache() / "librespot").string()),
+			"--cache", QString::fromStdString(getCachePath().string()),
+			"--autoplay", "on",
 		});
-
-		const auto autoplaySupport = SpotifyClient::Helper::getAutoplaySupport(path);
-		if (autoplaySupport != AutoplaySupport::None)
-		{
-			arguments.append(QStringLiteral("--autoplay"));
-			if (autoplaySupport == AutoplaySupport::Option)
-			{
-				arguments.append(QStringLiteral("on"));
-			}
-		}
 	}
 	else if (clientType == lib::client_type::spotifyd)
 	{
@@ -162,18 +146,6 @@ void SpotifyClient::Runner::start(const QString &username, const QString &passwo
 		arguments.append(additional_arguments.split(' '));
 	}
 
-	QProcess::connect(process, &QProcess::readyReadStandardOutput,
-		this, &Runner::onReadyReadOutput);
-
-	QProcess::connect(process, &QProcess::readyReadStandardError,
-		this, &Runner::onReadyReadError);
-
-	QProcess::connect(process, &QProcess::started,
-		this, &Runner::onStarted);
-
-	QProcess::connect(process, &QProcess::errorOccurred,
-		this, &Runner::onErrorOccurred);
-
 	lib::log::debug("starting: {} {}", path.toStdString(),
 		joinArgs(arguments).toStdString());
 
@@ -198,18 +170,23 @@ void SpotifyClient::Runner::logOutput(const QByteArray &output, lib::log_type lo
 
 		log.emplace_back(lib::date_time::now(), logType, line.toStdString());
 
-#ifdef USE_KEYCHAIN
+		const auto urlIndex = line.indexOf(QStringLiteral("https://accounts.spotify.com/authorize"));
+		if (urlIndex >= 0)
+		{
+			const auto url = line.right(line.length() - urlIndex);
+			auto *parent = qobject_cast<QWidget *>(QObject::parent());
+			Url::open(url, LinkType::Web, parent);
+		}
+
 		if (line.contains(QStringLiteral("Bad credentials")))
 		{
-			const auto username = QString::fromStdString(settings.spotify.username);
-			if (Keychain::clearPassword(username))
-			{
-				lib::log::warn("Bad credentials, cleared saved password");
-			}
-
 			emit statusChanged(QStringLiteral("Bad credentials, please try again"));
+
+			if (resetCredentials())
+			{
+				lib::log::debug("Credentials reset");
+			}
 		}
-#endif
 	}
 }
 
@@ -224,6 +201,23 @@ auto SpotifyClient::Runner::joinArgs(const QStringList &args) -> QString
 				i < args.size() - 1 ? " " : ""));
 	}
 	return result;
+}
+
+auto SpotifyClient::Runner::getCachePath() const -> std::filesystem::path
+{
+	return paths.cache() / "librespot";
+}
+
+auto SpotifyClient::Runner::isLoggedIn() const -> bool
+{
+	const auto path = getCachePath() / "credentials.json";
+	return std::filesystem::exists(path);
+}
+
+auto SpotifyClient::Runner::resetCredentials() const -> bool
+{
+	const auto path = getCachePath() / "credentials.json";
+	return std::filesystem::remove(path);
 }
 
 void SpotifyClient::Runner::onReadyReadOutput()
@@ -243,7 +237,8 @@ void SpotifyClient::Runner::onStarted()
 
 void SpotifyClient::Runner::onErrorOccurred(QProcess::ProcessError error)
 {
-	emit statusChanged(QString("Error %1").arg(error));
+	const auto message = Helper::processErrorToString(error);
+	emit statusChanged(message);
 }
 
 auto SpotifyClient::Runner::getLog() -> const std::vector<lib::log_message> &
